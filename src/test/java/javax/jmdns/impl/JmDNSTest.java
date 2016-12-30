@@ -1,4 +1,4 @@
-package javax.jmdns.test;
+package javax.jmdns.impl;
 
 import static org.easymock.EasyMock.*;
 import static org.junit.Assert.*;
@@ -13,10 +13,6 @@ import java.net.UnknownHostException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Level;
-import java.util.logging.LogManager;
-import java.util.logging.Logger;
 
 import javax.jmdns.JmDNS;
 import javax.jmdns.ServiceEvent;
@@ -43,18 +39,6 @@ public class JmDNSTest {
 
     @Before
     public void setup() {
-        boolean log = false;
-        if (log) {
-            ConsoleHandler handler = new ConsoleHandler();
-            handler.setLevel(Level.FINEST);
-            for (Enumeration<String> enumerator = LogManager.getLogManager().getLoggerNames(); enumerator.hasMoreElements();) {
-                String loggerName = enumerator.nextElement();
-                Logger logger = Logger.getLogger(loggerName);
-                logger.addHandler(handler);
-                logger.setLevel(Level.FINEST);
-            }
-        }
-
         String text = "Test hypothetical web server";
         Map<String, byte[]> properties = new HashMap<String, byte[]>();
         properties.put(serviceKey, text.getBytes());
@@ -396,6 +380,42 @@ public class JmDNSTest {
         } finally {
             if (registry != null) registry.close();
             if (newServiceRegistry != null) newServiceRegistry.close();
+        }
+    }
+    
+    @Test
+    public void testAddServiceListenerTwice() throws IOException {
+        System.out.println("Unit Test: testAddServiceListenerTwice()");
+        JmDNSImpl registry = null;
+        try {
+            registry = (JmDNSImpl) JmDNS.create();
+            registry.addServiceListener("test", serviceListenerMock);
+            
+            // we will have 2 listeners, since the collector is implicitly added as well
+            assertEquals(2, registry._serviceListeners.get("test").size());
+            
+            registry.addServiceListener("test", serviceListenerMock);
+            assertEquals(2, registry._serviceListeners.get("test").size());
+        } finally {
+            if (registry != null) registry.close();
+        }
+    }
+
+    @Test
+    public void testRemoveServiceListener() throws IOException {
+        System.out.println("Unit Test: testRemoveServiceListener()");
+        JmDNSImpl registry = null;
+        try {
+            registry = (JmDNSImpl) JmDNS.create();
+            registry.addServiceListener("test", serviceListenerMock);
+            // we will have 2 listeners, since the collector is implicitly added as well
+            assertEquals(2, registry._serviceListeners.get("test").size());
+            
+            registry.removeServiceListener("test", serviceListenerMock);
+            // the collector is left in place
+            assertEquals(1, registry._serviceListeners.get("test").size());
+        } finally {
+            if (registry != null) registry.close();
         }
     }
 
